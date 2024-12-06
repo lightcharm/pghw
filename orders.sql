@@ -100,4 +100,4 @@ ON DELETE CASCADE
 ON UPDATE CASCADE;
 
 -- Создание индекса
--- CREATE INDEX orders_date_idx ON orders(date);
+CREATE INDEX IF NOT EXISTS date_idx ON orders(date);

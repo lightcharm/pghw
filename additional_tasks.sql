@@ -15,13 +15,52 @@ ORDER BY COUNT(*) DESC
 LIMIT 10;
 
 -- Проверка
-SELECT discount_id, client_id, discount_fraction
-FROM public.discounts
+SELECT ds.discount_id, cl.first_name, cl.last_name, ds.discount_fraction
+FROM public.discounts AS ds
+INNER JOIN clients AS cl ON ds.client_id = cl.client_id;
 
 -- 2 Повышение зарплаты трем самым результативным работникам на 10%
+UPDATE workers
+SET wages = wages * 1.1
+WHERE worker_id IN (
+    SELECT worker_id
+    FROM orders
+	GROUP BY worker_id
+    ORDER BY COUNT(client_id) DESC
+    LIMIT 3
+);
+
+-- Проверка
+SELECT *
+FROM public.workers;
 
 -- 3 Представление для директора: филиал, кол-во заказов за месяц, заработанная сумма, прибыль
+CREATE OR REPLACE VIEW service_report AS
+SELECT sr.service, sr.service_address, COUNT(rd.order_id) AS number_orders, SUM(rd.payment::integer) AS total, SUM(rd.payment::integer) - SUM(wr.wages::integer) AS profit
+FROM orders AS rd
+INNER JOIN services AS sr ON sr.service_id = rd.service_id
+INNER JOIN workers AS wr ON rd.worker_id = wr.worker_id
+WHERE rd.date >= date_trunc('month', rd.date)
+AND rd.date < date_trunc('month', rd.date) + INTERVAL '1 month'
+AND rd.payment IS NOT NULL
+GROUP BY sr.service, sr.service_address
+ORDER BY profit DESC, total DESC;
+
+-- Проверка
+SELECT * FROM service_report;
 
 -- 4 Рейтинг самых надежных и ненадежных автомобилей
+SELECT cr.car, COUNT(rd.car_id) AS service_visits
+FROM cars AS cr
+LEFT JOIN orders AS rd ON cr.car_id = rd.car_id
+GROUP BY cr.car_id, cr.car
+ORDER BY service_visits DESC; -- DESC заменить на ASC => рейтинг самых надежных автомобилей
+-- "Lincoln" - самый надежный, "Buick" - самый ненадежный. Рейтинг составлялся по количеству посещений
 
 -- 5 Автомобиль какого цвета меньше всего посещает автосервис
+SELECT cr.color, COUNT(rd.car_id) AS lucky_color
+FROM cars AS cr
+LEFT JOIN orders AS rd ON cr.car_id = rd.car_id
+GROUP BY cr.car_id, cr.color
+ORDER BY lucky_color;
+-- "Амарантовый" цвет наименее склонен к посещению автосервисов
